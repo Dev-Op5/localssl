@@ -89,9 +89,9 @@ Example result:
 
 After doing the Root CA initialization, it is recommended to _register your Root CA_ to every browser you need by import the RootCA's `*.crt` file into the browser settings.
 
-- Chrome Setting (_also applied in Chromium, Edge, Vivaldi, Brave_) : open the link `chrome://settings/certificates` in your Chrome Address Bar -> then switch to **Authorities** tab -> click the **Import** button and add your `001-RootCA*.crt` from `/etc/localssl.certs` folder.
-- Firefox Setting : refer to [this article](https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox) or open the `about:preferences` from Firefox Address Bar -> then type to search "Certificates" -> then click the button `View Certificates`. The Certificate Manager window will open, and you can import the `*.crt` on the **Authorities** tab.
-- Android Chrome Setting : transfer your `001-RootCA.crt` to your Android device, open Android setting, in **Security** section select `Encryption & Credentials` -> `Install a certificate` -> `CA certificate` -> then select the transferred certificate. _Note:_ eventually this custom self-signed Root CA will only be used by Android Chrome Browser and/or WebView apps that using chrome browser as their engine. Other apps (or native apps) don't trust self-signed certificates installed.
+- **Chrome Setting** (_also applied in Chromium, Edge, Vivaldi, Brave_) : open the link `chrome://settings/certificates` in your Chrome Address Bar -> then switch to **Authorities** tab -> click the **Import** button and add your `001-RootCA*.crt` from `/etc/localssl.certs` folder.
+- **Firefox Setting** : refer to [this article](https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox) or open the `about:preferences` from Firefox Address Bar -> then type to search "Certificates" -> then click the button `View Certificates`. The Certificate Manager window will open, and you can import the `*.crt` on the **Authorities** tab.
+- **Android Chrome Setting** : transfer your `001-RootCA.crt` to your Android device, open Android setting, in **Security** section select `Encryption & Credentials` -> `Install a certificate` -> `CA certificate` -> then select the transferred certificate. _Note:_ eventually this custom self-signed Root CA will only be used by Android Chrome Browser and/or WebView apps that using chrome browser as their engine. Other apps (or native apps) don't trust self-signed certificates installed.
 
 Don't worry, you just need to do this one time only, _unless_ you made changes/remove/and-or recreate of your RootCA.
 
@@ -167,3 +167,5 @@ Just launch `localssl help` to explore further options, or you can read the sour
 ![localssl help](docs/localssl-help-screen.jpg)
 
 ## ENJOY
+
+> Scripted with :green_heart: by @eRQee. This script comes with no licenses (and no warranty) attached. Feel free to fork, copy or modify that.

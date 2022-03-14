@@ -1,6 +1,6 @@
 # BASH Script: `localssl`
 
-_A Self-Signed Certificate to support HTTPS on Local Application Development that just works._
+_A **valid** Self-Signed SSL Certificate to support HTTPS on Local Application Development that just works._
 
 ## HIGHLIGHTS
 

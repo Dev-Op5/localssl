@@ -8,6 +8,7 @@ _A **valid** Self-Signed SSL Certificate to support HTTPS on Local Application D
 2. maintain & register your FQDN (locally) that could accessed via Chrome & many modern browser with NO MORE display annoying `ERR_CERT_COMMON_NAME_INVALID` errors.
 
 ## PROOF
+
 ![proof of valid self-signed ssl](docs/proof-valid-ssl.jpg)
 
 Don't see the red lock icon on that https-enabled local domain? Yeah, you right!
@@ -19,7 +20,7 @@ Like this:
 
 ![example of nginx config](docs/nginx-config.jpg)
 
-## BUT...
+## BUT
 
 After once your machine became the Root CA, you need to let Chrome (and any other browser) know that you are now a Trusted CA. To do that, just open `chrome://settings/certificates` and import your `001-RootCA-*.crt` generated via this script (will found on `/etc/localssl.certs/` folder).
 
@@ -39,7 +40,7 @@ sudo apt-get install openssl ca-certificates
 
 ### 2. INSTALLATION
 
-To implement this on your Linux Box (Debian/Ubuntu/their derivative OS), you have **no need** to `git clone` this repo (although clone is the recommended way, IMO). Just [download from here](https://raw.githubusercontent.com/Dev-Op5/localssl/master/localssl) and copy the `localssl` file to folder `/usr/local/bin`. 
+To implement this on your Linux Box (Debian/Ubuntu/their derivative OS), you have **no need** to `git clone` this repo (although clone is the recommended way, IMO). Just [download from here](https://raw.githubusercontent.com/Dev-Op5/localssl/master/localssl) and copy the `localssl` file to folder `/usr/local/bin`.
 
 ```bash
 cd /tmp
@@ -70,7 +71,7 @@ To create the Root CA, you just need to launch the command:
 localssl init
 ```
 
-That will generate the Root CA certification that the files (`*.crt, *.key`) will found inside the `/etc/localssl.certs` folder. 
+That will generate the Root CA certification that the files (`*.crt, *.key`) will found inside the `/etc/localssl.certs` folder.
 
 To verify the certificates, you can launch the command
 
@@ -86,18 +87,17 @@ Example result:
 >
 > The generated Root CA is following the current standard of **x509v3 Subject Alternative Name** that required by modern browser just like [Chrome](https://www.thesslstore.com/blog/security-changes-in-chrome-58/) and [MacOS/Safari](https://support.apple.com/en-us/HT210176) announced on the linked articles. And that's why the browsers will mark this Root CA as **Trusted and Valid** SSL issuer.
 
-After doing the Root CA initialization, it is recommended to *register your Root CA* to every browser you need by import the RootCA's `*.crt` file into the browser settings.
+After doing the Root CA initialization, it is recommended to _register your Root CA_ to every browser you need by import the RootCA's `*.crt` file into the browser settings.
 
 - Chrome Setting (_also applied in Chromium, Edge, Vivaldi, Brave_) : open the link `chrome://settings/certificates` in your Chrome Address Bar -> then switch to **Authorities** tab -> click the **Import** button and add your `001-RootCA*.crt` from `/etc/localssl.certs` folder.
 - Firefox Setting : refer to [this article](https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox) or open the `about:preferences` from Firefox Address Bar -> then type to search "Certificates" -> then click the button `View Certificates`. The Certificate Manager window will open, and you can import the `*.crt` on the **Authorities** tab.
 - Android Chrome Setting : transfer your `001-RootCA.crt` to your Android device, open Android setting, in **Security** section select `Encryption & Credentials` -> `Install a certificate` -> `CA certificate` -> then select the transferred certificate. _Note:_ eventually this custom self-signed Root CA will only be used by Android Chrome Browser and/or WebView apps that using chrome browser as their engine. Other apps (or native apps) don't trust self-signed certificates installed.
 
-Don't worry, you just need to do this one time only, _except_ you made changes/remove/and-or recreate of your RootCA.
+Don't worry, you just need to do this one time only, _unless_ you made changes/remove/and-or recreate of your RootCA.
 
 > :thumbsup: **to make Valid Self-Signed SSL accessed from other devices (inside same local network)**
 >
 > You can copy your `001-RootCA*.crt` to other machine and do the certificate's import mechanism like explained above to make the other device (within the same local network) could recognized your Root CA as a Valid & Trusted CA issuer.
-
 
 ### 4. REGISTER THE CLIENT CA
 
@@ -113,15 +113,21 @@ which, the `laravel9.trial` is your chosen domain address that soon to be regist
 
 The `localssl register` command will also generate some certification files (`*.crt, *.csr, *.key`) inside the same `/etc/localssl.certs` folder **and** they also register the new line in your `/etc/hosts` file some extra entry about your domain.
 
-```
+```bash
 127.0.0.1  laravel9.trial
+```
+
+To see the certificate details for your domain, just run `localssl info` followed by your domain as extra parameter, for example:
+
+```bash
+localssl info laravel9.trial
 ```
 
 You can use the `*.crt` and `*.key` generated to be attached in your Web Server config, for example:
 
-**NGINX**
+#### NGINX
 
-```
+```bash
 server {
    ...
    ssl_certificate        /etc/localssl.certs/laravel9.trial.crt;
@@ -130,12 +136,12 @@ server {
 }
 ```
 
-**APACHE 2**
+#### APACHE 2
 
-```
+```bash
 ...
 SSLEngine on
-SSLCertificateFile /etc/localssl.certs/laravel9.trial.crt
+SSLCertificateFile    /etc/localssl.certs/laravel9.trial.crt
 SSLCertificateKeyFile /etc/localssl.certs/laravel9.trial.key
 ...
 ```
@@ -144,7 +150,11 @@ After restart the web-server, you could access your apps via your browser: `http
 
 ## MISC : REMOVE
 
-To remove the Client CA (one of your previously-created), you just need to launch `localssl remove <space> your-awesome-domain-address`
+To remove the Client CA (one of your previously-created), you just need to launch `localssl remove` command, for example:
+
+```bash
+localssl remove laravel9.trial
+```
 
 To remove the Root CA, run `localssl purge` without any other parameters. This will also remove all of your previous Client CAs.
 
@@ -156,4 +166,4 @@ Just launch `localssl help` to explore further options, or you can read the sour
 
 ![localssl help](docs/localssl-help-screen.jpg)
 
-# ENJOY!
+## ENJOY

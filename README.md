@@ -4,7 +4,7 @@ _A **valid** Self-Signed SSL Certificate to support HTTPS on Local Application D
 
 ## HIGHLIGHTS
 
-1. Turn your machine into the Root CA Authority that can create **valid SSL certificates*& to your local development apps as many as you like.
+1. Turn your machine into the Root CA Authority that can create **valid SSL certificates** to your local development apps as many as you like.
 2. maintain & register your FQDN (locally) that could accessed via Chrome & many modern browser with NO MORE display annoying `ERR_CERT_COMMON_NAME_INVALID` errors.
 
 ## PROOF

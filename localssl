@@ -1,0 +1,423 @@
+#!/bin/bash
+
+PROGRAM_VERSION='1.0.0'
+CERTIFICATE_PATH=/etc/localssl.certs
+LOCALSSL_PATH=$( readlink -f /usr/local/bin/localssl )
+
+CLR_RED='\033[0;31m'
+CLR_GREEN='\033[1;32m'
+CLR_CYAN='\033[0;36m'
+CLR_DEFAULT='\033[0m'
+
+##############
+# Am I root? #
+##############
+if [ "x$(id -u)" != 'x0' ]; then
+    echo -e "${CLR_RED}Error:${CLR_DEFAULT} this LocalSSL script can only be executed by ${CLR_CYAN}root${CLR_DEFAULT}."
+    exit 1
+fi
+
+#####################################
+# Check the pre-requisites packages #
+#####################################
+if [ ! -e '/usr/bin/openssl' ]; then
+    apt install -y openssl
+    if [ $? -ne 0 ]; then
+        echo -e "${CLR_RED}Error:${CLR_DEFAULT} cannot install ${CLR_CYAN}openssl${CLR_DEFAULT}."
+        exit 1
+    fi
+fi
+if [ ! -e '/usr/sbin/update-ca-certificates' ]; then
+    apt install -y ca-certificates
+    if [ $? -ne 0 ]; then
+        echo -e "${CLR_RED}Error:${CLR_DEFAULT} cannot install ${CLR_CYAN}ca-certificates${CLR_DEFAULT}."
+        exit 1
+    fi
+fi
+if [ ! -e '/bin/nano' ]; then
+    apt install -y nano
+    if [ $? -ne 0 ]; then
+        echo -e "${CLR_RED}Error:${CLR_DEFAULT} cannot install ${CLR_CYAN}nano${CLR_DEFAULT}."
+        exit 1
+    fi
+fi
+
+###############
+# The Scripts #
+###############
+
+if [ -z "$1" ]; then
+  echo -e "No parameter given. please run the command: ${CLR_CYAN}localssl help${CLR_DEFAULT}"
+  exit 0
+else
+  is_param=$1
+  second_param=$2
+fi
+
+previous_dir=$( pwd )
+str_hostname=$( hostname )
+str_fqdn=ca.$str_hostname.local
+
+function localssl_help () {
+  echo -e "---------------------------------------------------------------------------------------"
+  echo -e " ${CLR_GREEN}LocalSSL :: Self-Signed Certificate to support HTTPS on Local Application Development${CLR_DEFAULT}"
+  echo -e "---------------------------------------------------------------------------------------"
+  echo -e "                          works just well ONLY in ${CLR_CYAN}Debian/Ubuntu OS${CLR_DEFAULT} & their derivatives"
+  echo -e "                                  I am not a native speaker of RHEL/CentOS dialect ^_^"
+  echo -e ""
+  echo -e "Usage examples:"
+  echo -e ""
+  echo -e "[ROOT CA activities]"
+  echo -e "     ${CLR_CYAN}localssl init${CLR_DEFAULT}                              # to make your machine the Root CA providers (you must run this at least ONCE)."
+  echo -e "     ${CLR_CYAN}localssl purge${CLR_DEFAULT}                             # to remove the Root CA and ALL of the Client CAs that previously created."
+  echo -e ""
+  echo -e "[Client CA activities]"
+  echo -e "     ${CLR_CYAN}localssl list${CLR_DEFAULT}                              # show your current Client CA (local domain/application level) - if any."
+  echo -e "     ${CLR_CYAN}localssl register${CLR_DEFAULT} your.localapp.domain     # create the local Client CA for your local domain/application."
+  echo -e "     ${CLR_CYAN}localssl remove${CLR_DEFAULT} your.localapp.domain       # remove your Client CA"
+  echo -e "     ${CLR_CYAN}localssl info${CLR_DEFAULT} your.localapp.domain         # view the Client CA status of your.localapp.domain"
+  echo -e "     ${CLR_CYAN}localssl flush${CLR_DEFAULT}                             # reload the ca-certificates registered on this machine"
+  echo -e ""
+  echo -e "[MISC]"
+  echo -e "     ${CLR_CYAN}localssl help${CLR_DEFAULT}                              # display this inline help"
+  echo -e "     ${CLR_CYAN}localssl -v${CLR_DEFAULT}                                # display the script version"
+  echo -e "     ${CLR_CYAN}localssl update${CLR_DEFAULT}                            # to download updated script version from GitHub (if available)"
+  echo -e "     ${CLR_CYAN}localssl edithost${CLR_DEFAULT}                          # open & edit /etc/hosts"
+  echo -e ""
+  exit 0
+}
+
+function localssl_init () {
+mkdir -p $CERTIFICATE_PATH
+cd $CERTIFICATE_PATH
+
+echo -e ""
+echo -e "${CLR_GREEN}[LocalSSL : ROOT CA INSTALLATION]${CLR_DEFAULT}"
+echo -e ""
+echo -e "The command will auto-configure this machine as the RootCA with the following situations:"
+echo -e "  1) Your machine's HOSTNAME will be the RootCA Name."
+echo -e "  2) The RootCA FQDN will be: ${CLR_CYAN}$str_fqdn${CLR_DEFAULT} (and it will be registered into your /etc/hosts file)"
+echo -e "  3) Your machine's IP Addresses (all of it) will registered on the certificates."
+echo -e "  4) The scripts will create ${CLR_CYAN}$CERTIFICATE_PATH${CLR_DEFAULT} folder in order to save all of your self-signed RootCA & domain CA"
+echo -e "     Feel free to check it out."
+echo -e ""
+
+if [ -f 001-RootCA-$str_hostname.crt ]; then
+  echo -e "-------------------------------------------------------------------------------------------------------------"
+  echo -e ""
+  echo -e "${CLR_RED}WARN:${CLR_DEFAULT} You have already setup Root CA for this machine using LocalSSL."
+  echo -e "      You need to purge all of your self-signed certificates before re-creating the new Root CA."
+  echo -e "      Do this to purge : ${CLR_CYAN}localssl purge${CLR_DEFAULT}"
+  echo -e ""
+  cd $previous_dir
+  exit 0
+fi
+
+echo -e "NOTE: This is ${CLR_RED}NOT${CLR_DEFAULT} the command to create Client CA (domain/app level) to register SSL for your apps."
+echo -e "      Do this instead: ${CLR_CYAN}localssl register your.localapp.domain${CLR_DEFAULT}"
+echo -e ""
+echo -e "-------------------------------------------------------------------------------------------------------------"
+echo -e ""
+echo -e "Enter this Certificate Attribute details, or leave blank (just press ENTER) to set the defaults:"
+read -p "  1) 2-char Country Code : " ca_country
+read -p "  2) State/Province      : " ca_state 
+read -p "  3) City/District       : " ca_location
+read -p "  4) Organization Name   : " ca_organization 
+echo -e ""
+echo -e "-------------------------------------------------------------------------------------------------------------"
+echo -e ""
+read -p "Proceed to install RootCA? (Y/N) : " lets_go
+
+if [ "$lets_go" != 'Y' ]; then
+  if [ "$lets_go" != 'y' ]; then
+    exit 1
+  fi
+fi
+
+[ -z "$ca_country" ] && ca_country="NA"
+[ -z "$ca_state" ] && ca_state="Undisclosed"
+[ -z "$ca_location" ] && ca_location="Undisclosed"
+[ -z "$ca_organization" ] && ca_organization="LocalSSL"
+ca_ou="LocalSSL Self-Signed Root CA"
+
+echo "" >> /etc/hosts
+echo "127.0.0.1       ${str_fqdn}" >> /etc/hosts
+
+cat > 000-localssl.conf << EOL
+[ CA_default ]
+copy_extensions = copy
+x509_extensions = v3_ca
+
+[ req ]
+default_bits = 2048
+default_md = sha256
+prompt = no
+string_mask = default
+distinguished_name = req_dn
+
+[ req_dn ]
+C = ${ca_country}
+ST = ${ca_state}
+L = ${ca_location}
+O = ${ca_organization}
+OU = ${ca_ou}
+CN = ${str_fqdn}
+
+[ v3_ca ]
+basicConstraints       = critical, CA:TRUE
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always, issuer:always
+keyUsage               = keyCertSign, cRLSign, digitalSignature
+subjectAltName         = @alt_names
+
+[ alt_names ]
+DNS.1 = ${str_hostname}
+DNS.2 = ${str_fqdn}
+IP.1 = 127.0.0.1
+EOL
+
+set -- $( hostname -I )
+for ((i=1;i<=$#;i++)); 
+do 
+  echo "IP.$((i+1)) = ${!i}" >> 000-localssl.conf
+done
+
+ca_ou="LocalSSL Self-Signed Client CA"
+cat > 002-default-attributes.conf << EOL
+[ CA_default ]
+copy_extensions = copy
+
+[ req ]
+default_bits = 2048
+default_md = sha256
+prompt = no
+string_mask = default
+distinguished_name = req_dn
+
+[ req_dn ]
+C = ${ca_country}
+ST = ${ca_state}
+L = ${ca_location}
+O = ${ca_organization}
+OU = ${ca_ou}
+CN = ${str_fqdn}
+
+EOL
+
+#openssl genrsa -out 001-RootCA-$str_hostname.key 2048
+#openssl req -x509 -nodes -new -days 3653 \
+#-reqexts v3_ca \
+#-config 000-localssl.conf \
+#-out 001-RootCA-$str_hostname.pem 
+#openssl x509 -outform pem \
+#-in 001-RootCA-$str_hostname.pem \
+#-out 001-RootCA-$str_hostname.crt
+
+openssl req -x509 -nodes -new -days 3653 -extensions v3_ca -config 000-localssl.conf -keyout 001-RootCA-$str_hostname.key --out 001-RootCA-$str_hostname.crt
+
+cp $CERTIFICATE_PATH/001-RootCA-$str_hostname.crt /usr/local/share/ca-certificates/
+update-ca-certificates
+
+echo ""
+echo -e "${CLR_GREEN}DONE!${CLR_DEFAULT} Now you can register your local domain or application to get the SSL Certificate that signed by this machine."
+echo -e "More information, see: ${CLR_CYAN}localssl help${CLR_DEFAULT}"
+cd $previous_dir
+exit 0
+}
+
+function localssl_purge () {
+if [ -f $CERTIFICATE_PATH/001-RootCA-$str_hostname.crt ]; then
+  read -p "Do you wish to remove the all the LocalSSL-generated Certificate in this machine? (Y/N) : " yup_letsgo
+  if [ "$yup_letsgo" != 'Y' ]; then
+      if [ "$yup_letsgo" != 'y' ]; then
+          exit 0
+      fi
+  fi
+
+  cd $CERTIFICATE_PATH
+  rm /usr/local/share/ca-certificates/001-RootCA-$str_hostname.*
+  update-ca-certificates --fresh
+  
+  set -- $( ls --ignore "000-localssl.conf" --ignore="001-RootCA-*" --ignore="002-default-attributes.conf" --hide={"*.key","*.csr","*.crt"} $CERTIFICATE_PATH | sed 's/\.ext$//' )
+  for ((i=1;i<=$#;i++)); 
+  do 
+    sed -i "/127.0.0.1       ${!i}/d" /etc/hosts
+  done
+  sed -i "/127.0.0.1       ${str_fqdn}/d" /etc/hosts
+
+  cd ..
+  rm -R $CERTIFICATE_PATH
+  mkdir -p $CERTIFICATE_PATH
+ 
+  echo -e "${CLR_GREEN}ALL DONE!${CLR_DEFAULT} Now ${CLR_CYAN}$str_hostname${CLR_DEFAULT} is no longer being Root CA, and any other Client CA that previously registered already purged."
+  cd $previous_dir
+  exit 0
+else 
+  echo -e "Root CA for this machine ${CLR_CYAN}($str_hostname)${CLR_DEFAULT} not found."
+  cd $previous_dir
+  exit 0
+fi
+
+}
+
+function localssl_register () {
+cd $CERTIFICATE_PATH
+
+cat > $second_param.ext << EOF
+basicConstraints = CA:TRUE
+authorityKeyIdentifier = keyid:always, issuer:always
+issuerAltName = issuer:copy
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement, keyCertSign
+extendedKeyUsage = serverAuth, clientAuth, timeStamping
+EOF
+
+ca_ou="Self-Signed Client CA for $second_param"
+sed -i "/CN = ${str_fqdn}/c\CN = ${second_param}" 002-default-attributes.conf
+sed -i "/OU = LocalSSL Self-Signed Client CA/c\OU = ${ca_ou}" 002-default-attributes.conf
+
+echo -e "generating key..."
+openssl genrsa -out $second_param.key 2048
+
+echo -e "generating certificate request..."
+openssl req -new -nodes -sha256 \
+-key $second_param.key \
+-reqexts SAN \
+-config <(cat 002-default-attributes.conf <(printf "\n[SAN]\nsubjectAltName=DNS:$second_param,DNS:*.$second_param\nsubjectKeyIdentifier=hash\n")) \
+-out $second_param.csr
+
+echo -e "generating signed certificate..."
+openssl x509 -req -days 365 \
+-in $second_param.csr \
+-CA 001-RootCA-$str_hostname.crt -CAkey 001-RootCA-$str_hostname.key -CAcreateserial \
+-extensions SAN -extfile <(cat $second_param.ext <(printf "\n[SAN]\nsubjectAltName=DNS:$second_param,DNS:*.$second_param\nsubjectKeyIdentifier=hash")) \
+-out $second_param.crt
+
+echo "127.0.0.1       ${second_param}" >> /etc/hosts
+
+sed -i "/CN = ${second_param}/c\CN = ${str_fqdn}" 002-default-attributes.conf
+sed -i "/OU = ${ca_ou}/c\OU = LocalSSL Self-Signed Client CA" 002-default-attributes.conf
+
+echo -e "${CLR_GREEN}DONE!${CLR_DEFAULT} SSL Certificate for domain ${CLR_CYAN}$second_param${CLR_DEFAULT} was created in ${CLR_CYAN}$CERTIFICATE_PATH${CLR_DEFAULT} directory."
+echo -e "Check it out via command: ${CLR_CYAN}localssl list${CLR_DEFAULT}"
+cd $previous_dir
+exit 0
+}
+
+function localssl_remove () {
+if [ -f $CERTIFICATE_PATH/$second_param.csr ]; then
+  read -p "Do you wish to remove the SSL Certificate for the domain $second_param ? (Y/N) : " yup_letsgo
+  if [ "$yup_letsgo" != 'Y' ]; then
+      if [ "$yup_letsgo" != 'y' ]; then
+          exit 0
+      fi
+  fi
+  sed --in-place '/$second_param/d' /etc/hosts
+  rm $CERTIFICATE_PATH/$second_param.*
+  echo -e "${CLR_GREEN}DONE!${CLR_DEFAULT} The Client CA for domain ${CLR_CYAN}$second_param${CLR_DEFAULT} has successfully removed from this machine."
+  echo -e "Check it out via command: ${CLR_CYAN}localssl list${CLR_DEFAULT}"
+  cd $previous_dir
+  exit 0
+else 
+  echo -e "${CLR_RED}SSL Certificate not found${CLR_DEFAULT}. Did you ever create SSL Client CA for domain ${CLR_CYAN}$second_param${CLR_DEFAULT} ?"
+fi
+cd $previous_dir
+exit 0
+}
+
+function localssl_list () {
+if [ -d $CERTIFICATE_PATH ]; then
+ls --ignore "000-localssl.conf" --ignore="001-RootCA-*" --ignore="002-default-attributes.conf" --hide={"*.key","*.csr","*.crt"} $CERTIFICATE_PATH | sed 's/\.ext$//'
+else
+echo -e "This machine is ${CLR_RED}not yet${CLR_DEFAULT} registered as Root CA."
+fi
+exit 0
+}
+
+function localssl_info () {
+cd $CERTIFICATE_PATH
+if [ -z "$second_param" ]; then
+  echo -e "${CLR_GREEN}LocalSSL RootCA Info${CLR_DEFAULT}"
+  echo -e "${CLR_GREEN}--------------------${CLR_DEFAULT}"
+  openssl x509 -text -noout -certopt no_sigdump,no_pubkey -in $CERTIFICATE_PATH/001-RootCA-$str_hostname.crt
+  echo -e "${CLR_GREEN}[INFO]${CLR_DEFAULT}"
+  echo -e "If you want to see Certificate Details of Client CA, please run the command: ${CLR_CYAN}localssl info your.localapps.domain${CLR_DEFAULT}"
+  echo -e "To see list of registered Client CA, please run: ${CLR_CYAN}localssl list${CLR_DEFAULT}"
+  exit 0
+fi
+if [ -f $CERTIFICATE_PATH/$second_param.csr ]; then
+    echo -e "${CLR_GREEN}LocalSSL Client CA Info for ${CLR_CYAN}$second_param${CLR_DEFAULT}"
+    openssl req -verify -text -noout -reqopt no_pubkey,no_sigdump -in $second_param.csr && \
+    openssl x509 -text -noout -certopt no_sigdump,no_pubkey -in $second_param.crt 
+  else 
+    echo -e "${CLR_RED}SSL Certificate not found${CLR_DEFAULT}. Did you ever create SSL Client CA for domain ${CLR_CYAN}$second_param${CLR_DEFAULT} ?"
+  fi
+
+cd $previous_dir
+exit 0
+}
+
+function localssl_flush () {
+update-ca-certificates
+exit 0
+}
+
+function localssl_update () {
+cd /tmp
+if [ -f /tmp/localssl ]; then
+  rm /tmp/localssl
+fi
+wget https://github.com/Dev-Op5/localssl/raw/master/localssl
+chmod +x /tmp/localssl
+sudo cp /tmp/localssl /usr/local/bin
+echo "UPDATE SUCCESSFULLY!"
+cd $previous_dir
+exit 0
+}
+
+if [ "$is_param" = 'init' ] || [ "$is_param" = 'install' ]; then
+   localssl_init
+fi
+
+if [ "$is_param" = 'purge' ]; then
+   localssl_purge
+fi
+
+if [ "$is_param" = 'list' ]; then
+   localssl_list
+fi
+
+if [ "$is_param" = 'info' ]; then
+   localssl_info $second_param
+fi
+
+if [ "$is_param" = 'flush' ]; then
+   localssl_flush
+fi
+
+if [ "$is_param" = 'register' ]; then
+   localssl_register $second_param
+fi
+
+if [ "$is_param" = 'remove' ]; then
+   localssl_remove $second_param
+fi
+
+if [ "$is_param" = '-v' ] || [ "$is_param" = '-V' ] || [ "$is_param" = '--version' ]; then
+  echo "LocalSSL version $PROGRAM_VERSION -- build at $( date -r $LOCALSSL_PATH )"
+  exit 0
+fi
+
+if [ "$is_param" = 'update' ] || [ "$is_param" = '--update' ] || [ "$is_param" = '-u' ] || [ "$is_param" = '-U' ]; then
+  localssl_update  
+fi
+
+if [ "$is_param" = 'edithost' ] || [ "$is_param" = '-e' ] || [ "$is_param" = '--edithost' ] || [ "$is_param" = '-edithost' ]; then
+  sudo nano /etc/hosts
+  exit 0
+fi
+
+if [ "$is_param" = 'help' ] || [ "$is_param" = '--help' ] || [ "$is_param" = '-help' ] || [ "$is_param" = '?' ] || [ "$is_param" = '/?' ]; then
+   localssl_help 
+fi
+
+exit 0

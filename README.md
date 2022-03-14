@@ -21,7 +21,7 @@ Like this:
 
 ## BUT...
 
-After once your machine became the Root CA, you need to let Chrome (and any other browser) know that you are now a Trusted CA. To do that, just open [chrome://settings/certificates](chrome://settings/certificates){target="_blank"} and import your `001-RootCA-*.crt` generated via this script (will found on `/etc/localssl.certs/` folder).
+After once your machine became the Root CA, you need to let Chrome (and any other browser) know that you are now a Trusted CA. To do that, just open `chrome://settings/certificates` and import your `001-RootCA-*.crt` generated via this script (will found on `/etc/localssl.certs/` folder).
 
 ![chrome setting certificates](docs/chrome-setting.jpg)
 
@@ -83,17 +83,20 @@ Example result:
 ![example result of root CA information](docs/example-localssl-info.jpg)
 
 > :thumbsup: **You see it just right!** :alien: :alien:
+>
 > The generated Root CA is following the current standard of **x509v3 Subject Alternative Name** that required by modern browser just like [Chrome](https://www.thesslstore.com/blog/security-changes-in-chrome-58/) and [MacOS/Safari](https://support.apple.com/en-us/HT210176) announced on the linked articles. And that's why the browsers will mark this Root CA as **Trusted and Valid** SSL issuer.
 
 After doing the Root CA initialization, it is recommended to *register your Root CA* to every browser you need by import the RootCA's `*.crt` file into the browser settings.
 
-- Chrome Setting (_also applied in Chromium, Edge, Vivaldi, Brave_) : open the link [chrome://settings/certificates](chrome://settings/certificates){target="blank"} in your Chrome Address Bar -> then switch to *Authorities* tab -> click the *Import* button and add your `001-RootCA*.crt` from `/etc/localssl.certs` folder.
+- Chrome Setting (_also applied in Chromium, Edge, Vivaldi, Brave_) : open the link `chrome://settings/certificates` in your Chrome Address Bar -> then switch to **Authorities** tab -> click the **Import** button and add your `001-RootCA*.crt` from `/etc/localssl.certs` folder.
 - Firefox Setting : refer to [this article](https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox){target="blank"} or open the `about:preferences` from Firefox Address Bar -> then type to search "Certificates" -> then click the button `View Certificates`. The Certificate Manager window will open, and you can import the `*.crt` on the **Authorities** tab.
 
 Don't worry, you just need to do this one time only, _except_ you made changes/remove/and-or recreate of your RootCA.
 
 > :thumbsup: **to make Valid Self-Signed SSL accessed from other devices (inside same local network)**
+>
 > You can copy your `001-RootCA*.crt` to other machine and do the certificate's import mechanism like explained above to make the other device (within the same local network) could recognized your Root CA as a Valid & Trusted CA issuer.
+
 
 ### 4. REGISTER THE CLIENT CA
 
@@ -138,7 +141,7 @@ SSLCertificateKeyFile /etc/localssl.certs/laravel9.trial.key
 
 After restart the web-server, you could access your apps via your browser: `https://laravel9.trial` -- _perfectly with a Valid & Trusted Certificate_
 
-### MISC : REMOVE
+## MISC : REMOVE
 
 To remove the Client CA (one of your previously-created), you just need to launch `localssl remove <space> your-awesome-domain-address`
 
@@ -146,7 +149,7 @@ To remove the Root CA, run `localssl purge` without any other parameters. This w
 
 And yeah -- for your convenience -- the `remove` and `purge` procedures also cleanup the `/etc/hosts` entry. :green_heart:
 
-### MISC : HELP
+## MISC : HELP
 
 Just launch `localssl help` to explore further options, or you can read the source-code instead to understand the pattern of this script.
 

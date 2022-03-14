@@ -204,15 +204,6 @@ CN = ${str_fqdn}
 
 EOL
 
-#openssl genrsa -out 001-RootCA-$str_hostname.key 2048
-#openssl req -x509 -nodes -new -days 3653 \
-#-reqexts v3_ca \
-#-config 000-localssl.conf \
-#-out 001-RootCA-$str_hostname.pem 
-#openssl x509 -outform pem \
-#-in 001-RootCA-$str_hostname.pem \
-#-out 001-RootCA-$str_hostname.crt
-
 openssl req -x509 -nodes -new -days 3653 -extensions v3_ca -config 000-localssl.conf -keyout 001-RootCA-$str_hostname.key --out 001-RootCA-$str_hostname.crt
 
 cp $CERTIFICATE_PATH/001-RootCA-$str_hostname.crt /usr/local/share/ca-certificates/

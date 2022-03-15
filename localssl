@@ -342,7 +342,7 @@ exit 0
 
 function localssl_list () {
 if [ -d $CERTIFICATE_PATH ]; then
-ls --ignore "000-localssl.conf" --ignore="001-RootCA-*" --ignore="002-default-attributes.conf" --hide={"*.key","*.csr","*.crt"} $CERTIFICATE_PATH | sed 's/\.ext$//'
+ls --ignore "000-localssl.conf" --ignore="001-RootCA-*" --ignore="002-default-attributes.conf" --hide={"*.key","*.csr","*.crt"} $CERTIFICATE_PATH | rev | sort | rev | sed 's/\.ext$//'
 else
 echo -e "This machine is ${CLR_RED}not yet${CLR_DEFAULT} registered as Root CA."
 fi

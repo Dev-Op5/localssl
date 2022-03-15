@@ -3,6 +3,7 @@
 PROGRAM_VERSION='1.0.0'
 CERTIFICATE_PATH=/etc/localssl.certs
 LOCALSSL_PATH=$( readlink -f /usr/local/bin/localssl )
+HOSTS_FILE=/etc/hosts
 
 CLR_RED='\033[0;31m'
 CLR_GREEN='\033[1;32m'
@@ -82,7 +83,7 @@ function localssl_help () {
   echo -e "     ${CLR_CYAN}localssl help${CLR_DEFAULT}                              # display this inline help"
   echo -e "     ${CLR_CYAN}localssl -v${CLR_DEFAULT}                                # display the script version"
   echo -e "     ${CLR_CYAN}localssl update${CLR_DEFAULT}                            # to download updated script version from GitHub (if available)"
-  echo -e "     ${CLR_CYAN}localssl edithost${CLR_DEFAULT}                          # open & edit /etc/hosts"
+  echo -e "     ${CLR_CYAN}localssl edithost${CLR_DEFAULT}                          # open & edit $HOSTS_FILE"
   echo -e ""
   exit 0
 }
@@ -96,7 +97,7 @@ echo -e "${CLR_GREEN}[LocalSSL : ROOT CA INSTALLATION]${CLR_DEFAULT}"
 echo -e ""
 echo -e "The command will auto-configure this machine as the RootCA with the following situations:"
 echo -e "  1) Your machine's HOSTNAME will be the RootCA Name."
-echo -e "  2) The RootCA FQDN will be: ${CLR_CYAN}$str_fqdn${CLR_DEFAULT} (and it will be registered into your /etc/hosts file)"
+echo -e "  2) The RootCA FQDN will be: ${CLR_CYAN}$str_fqdn${CLR_DEFAULT} (and it will be registered into your $HOSTS_FILE file)"
 echo -e "  3) Your machine's IP Addresses (all of it) will registered on the certificates."
 echo -e "  4) The scripts will create ${CLR_CYAN}$CERTIFICATE_PATH${CLR_DEFAULT} folder in order to save all of your self-signed RootCA & domain CA"
 echo -e "     Feel free to check it out."
@@ -140,8 +141,8 @@ fi
 [ -z "$ca_organization" ] && ca_organization="LocalSSL"
 ca_ou="LocalSSL Self-Signed Root CA"
 
-echo "" >> /etc/hosts
-echo "127.0.0.1       ${str_fqdn}" >> /etc/hosts
+echo "" >> $HOSTS_FILE
+echo "127.0.0.1       ${str_fqdn}" >> $HOSTS_FILE
 
 cat > 000-localssl.conf << EOL
 [ CA_default ]
@@ -232,9 +233,9 @@ if [ -f $CERTIFICATE_PATH/001-RootCA-$str_hostname.crt ]; then
   set -- $( ls --ignore "000-localssl.conf" --ignore="001-RootCA-*" --ignore="002-default-attributes.conf" --hide={"*.key","*.csr","*.crt"} $CERTIFICATE_PATH | sed 's/\.ext$//' )
   for ((i=1;i<=$#;i++)); 
   do 
-    sed -i "/127.0.0.1       ${!i}/d" /etc/hosts
+    sed -i "/127.0.0.1       ${!i}/d" $HOSTS_FILE
   done
-  sed -i "/127.0.0.1       ${str_fqdn}/d" /etc/hosts
+  sed -i "/127.0.0.1       ${str_fqdn}/d" $HOSTS_FILE
 
   cd ..
   rm -R $CERTIFICATE_PATH
@@ -252,6 +253,24 @@ fi
 }
 
 function localssl_register () {
+
+if [ -z "$second_param" ]; then
+  echo -e "You forgot to write the domain name. More information: ${CLR_CYAN}localssl help${CLR_DEFAULT}"
+  exit 0
+fi
+
+if [ -f $CERTIFICATE_PATH/$second_param.csr ]; then
+  echo -e "${CLR_GREEN}[INFO]${CLR_DEFAULT}"
+  read -p "The domain $second_param already registered as Client CA. Do you wish to renew? (Y/N) : " yup_letsgo
+  if [ "$yup_letsgo" != 'Y' ]; then
+      if [ "$yup_letsgo" != 'y' ]; then
+          exit 0
+      fi
+  fi
+  sed --in-place '/$second_param/d' $HOSTS_FILE
+  rm $CERTIFICATE_PATH/$second_param.*
+fi
+
 cd $CERTIFICATE_PATH
 
 cat > $second_param.ext << EOF
@@ -283,7 +302,7 @@ openssl x509 -req -days 365 \
 -extensions SAN -extfile <(cat $second_param.ext <(printf "\n[SAN]\nsubjectAltName=DNS:$second_param,DNS:*.$second_param\nsubjectKeyIdentifier=hash")) \
 -out $second_param.crt
 
-echo "127.0.0.1       ${second_param}" >> /etc/hosts
+echo "127.0.0.1       ${second_param}" >> $HOSTS_FILE
 
 sed -i "/CN = ${second_param}/c\CN = ${str_fqdn}" 002-default-attributes.conf
 sed -i "/OU = ${ca_ou}/c\OU = LocalSSL Self-Signed Client CA" 002-default-attributes.conf
@@ -295,6 +314,12 @@ exit 0
 }
 
 function localssl_remove () {
+
+if [ -z "$second_param" ]; then
+  echo -e "You forgot to write the domain name. More information: ${CLR_CYAN}localssl help${CLR_DEFAULT}"
+  exit 0
+fi
+  
 if [ -f $CERTIFICATE_PATH/$second_param.csr ]; then
   read -p "Do you wish to remove the SSL Certificate for the domain $second_param ? (Y/N) : " yup_letsgo
   if [ "$yup_letsgo" != 'Y' ]; then
@@ -302,7 +327,7 @@ if [ -f $CERTIFICATE_PATH/$second_param.csr ]; then
           exit 0
       fi
   fi
-  sed --in-place '/$second_param/d' /etc/hosts
+  sed --in-place '/$second_param/d' $HOSTS_FILE
   rm $CERTIFICATE_PATH/$second_param.*
   echo -e "${CLR_GREEN}DONE!${CLR_DEFAULT} The Client CA for domain ${CLR_CYAN}$second_param${CLR_DEFAULT} has successfully removed from this machine."
   echo -e "Check it out via command: ${CLR_CYAN}localssl list${CLR_DEFAULT}"
@@ -403,7 +428,7 @@ if [ "$is_param" = 'update' ] || [ "$is_param" = '--update' ] || [ "$is_param" =
 fi
 
 if [ "$is_param" = 'edithost' ] || [ "$is_param" = '-e' ] || [ "$is_param" = '--edithost' ] || [ "$is_param" = '-edithost' ]; then
-  sudo nano /etc/hosts
+  sudo nano $HOSTS_FILE
   exit 0
 fi
 
